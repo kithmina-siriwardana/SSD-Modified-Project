@@ -62,6 +62,7 @@ app.use((req, res, next) => {
     "Content-Security-Policy",
     "default-src 'self'; script-src 'self' https://trusted-cdn.com; img-src 'self' https://trusted-cdn.com; style-src 'self' https://trusted-cdn.com"
   );
+  console.log(req.url);
   next();
 });
 
