@@ -1,67 +1,135 @@
-const User = require('../models/User')
-const mongoose = require('mongoose')
+const User = require("../models/User");
+const mongoose = require("mongoose");
+const xss = require("xss"); // Import xss for input sanitization
 
-const CART = require('../models/cart');
-const InventoryProducts = require('../models/InventoryProducts')
+const CART = require("../models/cart");
+const InventoryProducts = require("../models/InventoryProducts");
 
+// Create a new cart
 const createCart = async (req, res) => {
-    const cart = new CART({
-        customer_id: req.body.customer_id,
-        Item_number : req.body.Item_number,
-        quantity: req.body.quantity
-    });
+  const { customer_id, Item_number, quantity } = req.body;
 
+  const sanitizedCustomerId = xss(customer_id);
+  const sanitizedItemNumber = xss(Item_number);
+  const sanitizedQuantity = xss(quantity);
+
+  const cart = new CART({
+    customer_id: sanitizedCustomerId,
+    Item_number: sanitizedItemNumber,
+    quantity: sanitizedQuantity,
+  });
+
+  try {
     await cart.save();
-    res.send(cart);
+    res.status(201).send(xss(cart)); // Respond with sanitized cart
+  } catch (error) {
+    res.status(400).json({ error: xss(error.message) });
+  }
 };
 
-
+// Get specific cart item by customer ID and product ID
 const getCart = async (req, res) => {
-    const cart = await CART.find({customer_id:req.params.cID , Item_number:req.params.pID});
-    res.send(cart);
-}
+  const sanitizedCustomerId = xss(req.params.cID);
+  const sanitizedItemNumber = xss(req.params.pID);
 
+  try {
+    const cart = await CART.find({
+      customer_id: sanitizedCustomerId,
+      Item_number: sanitizedItemNumber,
+    });
+    if (!cart.length) {
+      return res.status(404).json({ error: "Cart item not found" });
+    }
+    res.status(200).send(xss(cart));
+  } catch (error) {
+    res.status(400).json({ error: xss(error.message) });
+  }
+};
+
+// Get all cart items for a customer
 const getAllCart = async (req, res) => {
-    const cart = await CART.find({customer_id:req.params.cID});
-    var product = [];
-    for (var i = 0; i < cart.length; i++) {
-    product.push(await InventoryProducts.findById(cart[i].Item_number))
-    }
-    var final = [];
-    console.log(product);
-    for (let i = 0; i < cart.length; i++) {
-        final.push({product_id:product[i]._id,product_name:product[i].product_name, unit_price:product[i].unit_price, quantity:cart[i].quantity})
-    }
-    res.send(final);
+  const sanitizedCustomerId = xss(req.params.cID);
 
-}
+  try {
+    const cart = await CART.find({ customer_id: sanitizedCustomerId });
 
-const updateCart= async (req, res) => {
-    const cart = await CART.findOneAndUpdate(
-        {Customer_id:req.params.customerID , Item_number:req.params.productID},
-        {
-            customer_id: req.body.customer_id,
-            Item_number : req.body.Item_number,
-            quantity: req.body.quantity
-        },
-        {new:true}
+    if (!cart.length) {
+      return res.status(404).json({ error: "No items in the cart" });
+    }
+
+    const products = await Promise.all(
+      cart.map((item) => InventoryProducts.findById(item.Item_number))
     );
 
-    res.send(cart);
+    const finalCart = cart.map((item, index) => ({
+      product_id: products[index]._id,
+      product_name: products[index].product_name,
+      unit_price: products[index].unit_price,
+      quantity: item.quantity,
+    }));
+
+    res.status(200).send(finalCart);
+  } catch (error) {
+    res.status(400).json({ error: xss(error.message) });
+  }
 };
 
-//Delete from cart
-const deleteCart =async (req, res) => {
-    const cart = await CART.findOneAndDelete({customer_id:req.params.customerID, Item_number:req.params.productID})
-    res.send(cart);
+// Update cart item by customer ID and product ID
+const updateCart = async (req, res) => {
+  const sanitizedCustomerId = xss(req.params.customerID);
+  const sanitizedItemNumber = xss(req.params.productID);
+  const { customer_id, Item_number, quantity } = req.body;
+
+  const sanitizedBodyCustomerId = xss(customer_id);
+  const sanitizedBodyItemNumber = xss(Item_number);
+  const sanitizedQuantity = xss(quantity);
+
+  try {
+    const cart = await CART.findOneAndUpdate(
+      { customer_id: sanitizedCustomerId, Item_number: sanitizedItemNumber },
+      {
+        customer_id: sanitizedBodyCustomerId,
+        Item_number: sanitizedBodyItemNumber,
+        quantity: sanitizedQuantity,
+      },
+      { new: true }
+    );
+
+    if (!cart) {
+      return res.status(404).json({ error: "Cart item not found" });
+    }
+
+    res.status(200).send(xss(cart));
+  } catch (error) {
+    res.status(400).json({ error: xss(error.message) });
+  }
 };
 
-module.exports = { 
- 
-    createCart,
-    updateCart,
-    getCart,
-    getAllCart,
-    deleteCart 
-    
-}
+// Delete a cart item by customer ID and product ID
+const deleteCart = async (req, res) => {
+  const sanitizedCustomerId = xss(req.params.customerID);
+  const sanitizedItemNumber = xss(req.params.productID);
+
+  try {
+    const cart = await CART.findOneAndDelete({
+      customer_id: sanitizedCustomerId,
+      Item_number: sanitizedItemNumber,
+    });
+
+    if (!cart) {
+      return res.status(404).json({ error: "Cart item not found" });
+    }
+
+    res.status(200).send(xss(cart));
+  } catch (error) {
+    res.status(400).json({ error: xss(error.message) });
+  }
+};
+
+module.exports = {
+  createCart,
+  getCart,
+  getAllCart,
+  updateCart,
+  deleteCart,
+};

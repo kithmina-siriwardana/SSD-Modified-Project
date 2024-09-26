@@ -1,93 +1,74 @@
-const User = require('../models/User')
-const mongoose = require('mongoose')
-const CART = require('../models/cart');
-const InventoryProducts = require('../models/InventoryProducts');
-const Order = require('../models/Order');
-const Orderproduct = require('../models/orderedProduct');
+const xss = require("xss");
+const User = require("../models/User");
+const mongoose = require("mongoose");
+const CART = require("../models/cart");
+const InventoryProducts = require("../models/InventoryProducts");
+const Order = require("../models/Order");
+const Orderproduct = require("../models/orderedProduct");
 
-
-
-var cusID;
-
-// get all users
 const getCartTotal = async (req, res) => {
-    const bill = await CART.find({customer_id : req.params.cusID});
-    console.log("bill");
-    cusID=req.params.cusID
-   var prod = [];
-   var calculation =[];
-   var final = [];
-    console.log(bill.length)
-    var i;
-    
-    for(i=0;i<bill.length;i++){
-        
-        prod.push (await InventoryProducts.findById(bill[i].Item_number));
+  try {
+    const bill = await CART.find({ customer_id: req.params.cusID });
+
+    if (!bill.length) {
+      return res.status(404).json({ message: "Cart not found" });
     }
-    var itemPrice;
-    var total_amount=0;
-    for(i=0;i<prod.length;i++){
-        itemPrice = prod[i].unit_price*bill[i].quantity;
-        total_amount+=itemPrice;
-        calculation.push({ Item_Price : itemPrice});
-    }
-/*//creating order
-         const order= new Order({
-            CustomerID: cusID,
-            Status : "Pending",
-            Date : new Date().getDate(),
-           
-        });
-    
-       await order.save();
-//get order ID
-        var OID =[];
-         OID.push(await Order.findOne({CustomerID: cusID}));
 
-        const orderID = OID[0]._id;
-        console.log(orderID);
-*/
-    for(i=0;i<prod.length;i++){
-        final.push({
-            product_ID : prod[i]._id,     
-            product_Name : prod[i].product_name, 
-            quantity : bill[i].quantity ,
-            product_price : calculation[i].Item_Price , 
-            total_Amount : total_amount,
-           
-            }
-            );
+    const prod = await Promise.all(
+      bill.map((item) => InventoryProducts.findById(item.Item_number))
+    );
 
-            
-           
+    const final = prod.map((product, index) => {
+      const itemPrice = product.unit_price * bill[index].quantity;
+      return {
+        product_ID: product._id,
+        product_Name: xss(product.product_name), // Sanitize product name
+        quantity: bill[index].quantity,
+        product_price: itemPrice,
+        total_Amount: itemPrice * bill[index].quantity,
+      };
+    });
 
-    }
-    
-
-    //const kk = await product.findById("632b4b6777f3c2fcb5e9ae55");
-    
-    //const prod = await product.findById(bill.Item_number);
-   // const plus = {arr1:bill , arr2:prod};
-
-
-   
-    res.send(final);
-    
+    res.json(final);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Internal server error" });
+  }
 };
 
 const getBuyNowTotal = async (req, res) => {
+  try {
     const product = await InventoryProducts.findById(req.params.pid);
-    console.log(product.product_name);
-    var bill = [];
-    var Quantity=req.params.qty;
-    var Price = product.unit_price*Quantity;
-    bill.push({product_ID: product._id , product_Name:product.product_name , quantity: Quantity ,product_price: Price,total_Amount:Price});
-    res.send(bill);
-}
 
+    if (!product) {
+      return res.status(404).json({ message: "Product not found" });
+    }
 
-module.exports = { 
-    getCartTotal,
-   
-    getBuyNowTotal
-}
+    const quantity = Number(req.params.qty);
+    if (isNaN(quantity) || quantity <= 0) {
+      return res.status(400).json({ message: "Invalid quantity" });
+    }
+
+    const price = product.unit_price * quantity;
+
+    const bill = [
+      {
+        product_ID: product._id,
+        product_Name: xss(product.product_name), // Use sanitized product name
+        quantity: quantity,
+        product_price: price,
+        total_Amount: price,
+      },
+    ];
+
+    res.json(bill);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+module.exports = {
+  getCartTotal,
+  getBuyNowTotal,
+};

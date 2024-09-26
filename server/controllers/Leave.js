@@ -1,19 +1,18 @@
-const mongoose = require('mongoose') 
-
+const mongoose = require("mongoose");
 
 const LeaveSchema = new mongoose.Schema({
-  empID:{
-    type:String
+  empID: {
+    type: String,
   },
   description: {
     type: String,
     required: true,
   },
-  startDate:{
+  startDate: {
     type: Date,
     required: true,
   },
-  endDate:{
+  endDate: {
     type: Date,
     required: true,
   },
@@ -26,7 +25,7 @@ const LeaveSchema = new mongoose.Schema({
     default: Date.now,
     required: true,
   },
-})
-const Leave = mongoose.model('Leave', LeaveSchema)
+});
+const Leave = mongoose.model("Leave", LeaveSchema);
 
 module.exports = Leave;
