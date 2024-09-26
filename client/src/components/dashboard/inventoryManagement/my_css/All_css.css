@@ -1,0 +1,56 @@
+/* Inventory Products Homepage */
+.productsImages{
+    height: 100%;
+    width: 100%;
+}
+
+#productAddBtn{
+    position: relative;
+    margin-right: 60px;
+}
+
+.productDescription{
+    height: 80px;
+    width: 270px;
+    resize: none;
+    overflow: hidden;
+}
+
+/* Inventory Product Overview Page */
+.productOverviewBtns{
+    position: relative;
+    bottom: 40px;
+}
+
+/* Inventory Raw Materials Page */
+.rawMaterialTopContent{
+    position: relative;
+    bottom: 40px;
+}
+
+/*Inventory New Order Page */
+.cart{
+    position: relative;
+    left: 90%;
+    top: 10px;
+}
+
+.cartItemCount{
+    position: relative;
+    left: 91.5%;
+    bottom: 60px;
+}
+
+/*Inventory Cart Overview Page */
+.deleteBtn{
+    border: none;
+    border-radius: 5px 5px 5px 5px;
+    position: relative;
+    top: 20px;
+    background-color: white;
+    transition: 0.3s;
+}
+
+.deleteBtn:hover{
+    background-color: #D3D3D3;
+}
