@@ -11,7 +11,6 @@ const createToken = (_id) => {
 // get all users
 const getUsers = async (req, res) => {
   const employees = await Employee.find({}).sort({ lastLogin: -1 });
-
   res.status(200).json(employees);
 };
 
@@ -19,14 +18,15 @@ const getUsers = async (req, res) => {
 const getUser = async (req, res) => {
   const { id } = req.params;
 
+  // Validate that the 'id' is a valid MongoDB ObjectId
   if (!mongoose.Types.ObjectId.isValid(id)) {
-    return res.status(404).json({ error: "User does not exsist" });
+    return res.status(404).json({ error: "User does not exist" });
   }
 
   const employee = await Employee.findById(id);
 
   if (!employee) {
-    return res.status(404).json({ error: "User does not exsist" });
+    return res.status(404).json({ error: "User does not exist" });
   }
 
   res.status(200).json(employee);
@@ -35,30 +35,51 @@ const getUser = async (req, res) => {
 // create new user
 const createUser = async (req, res) => {
   const { name, email, dob, role, address, phone, password } = req.body;
-  var isPhoneValid = /^[0-9,.]*$/.test(phone);
 
+  // Type checks for all input fields
+  if (
+    typeof name !== "string" ||
+    typeof email !== "string" ||
+    typeof dob !== "string" ||
+    typeof role !== "string" ||
+    typeof address !== "string" ||
+    typeof phone !== "string" ||
+    typeof password !== "string"
+  ) {
+    // If any field is not of the expected type, return an error
+    return res.status(400).json({ error: "Invalid input types" });
+  }
+
+  // Check if all required fields are provided
   if (!name || !email || !dob || !role || !address || !phone || !password) {
     return res.status(400).json({ error: "All fields must be filled" });
   }
+
+  // Validate email format
   if (!validator.isEmail(email)) {
     return res.status(400).json({ error: "Email is not valid" });
   }
+
+  // Check if email is already in use
   if (await Employee.findOne({ email })) {
     return res.status(400).json({ error: "Email already in use" });
   }
-  if (phone.length != 10 || !isPhoneValid) {
+
+  // Validate phone number to be exactly 10 digits and only numeric
+  var isPhoneValid = /^[0-9]{10}$/.test(phone);
+  if (!isPhoneValid) {
     return res.status(400).json({ error: "Phone number is not valid" });
   }
+
+  // Validate password strength
   if (!validator.isStrongPassword(password)) {
-    return res
-      .status(400)
-      .json({
-        error:
-          "Password not strong enough. Must contains uppercase, lowercase, numbers and more than eight characters",
-      });
+    return res.status(400).json({
+      error:
+        "Password not strong enough. Must contain uppercase, lowercase, numbers, and more than eight characters",
+    });
   }
 
-  // add doc to db
+  // Add the new employee document to the database
   try {
     const employee = await Employee.create({
       name,
@@ -84,14 +105,15 @@ const createUser = async (req, res) => {
 const deleteUser = async (req, res) => {
   const { id } = req.params;
 
+  // Validate that the 'id' is a valid MongoDB ObjectId
   if (!mongoose.Types.ObjectId.isValid(id)) {
-    return res.status(404).json({ error: "User does not exsist" });
+    return res.status(404).json({ error: "User does not exist" });
   }
 
   const employee = await Employee.findOneAndDelete({ _id: id });
 
   if (!employee) {
-    return res.status(404).json({ error: "User does not exsist" });
+    return res.status(404).json({ error: "User does not exist" });
   }
 
   res.status(200).json(employee);
@@ -101,36 +123,57 @@ const deleteUser = async (req, res) => {
 const updateUser = async (req, res) => {
   const { id } = req.params;
   const { name, email, dob, role, address, phone } = req.body;
-  var isPhoneValid = /^[0-9,.]*$/.test(phone);
 
+  // Type checks for all input fields
+  if (
+    typeof name !== "string" ||
+    typeof email !== "string" ||
+    typeof dob !== "string" ||
+    typeof role !== "string" ||
+    typeof address !== "string" ||
+    typeof phone !== "string"
+  ) {
+    // If any field is not of the expected type, return an error
+    return res.status(400).json({ error: "Invalid input types" });
+  }
+
+  // Validate required fields are filled
   if (!name || !email || !dob || !role || !address || !phone) {
     return res.status(400).json({ error: "All fields must be filled" });
   }
-  if (!validator.isEmail(req.body.email)) {
+
+  // Validate email format
+  if (!validator.isEmail(email)) {
     return res.status(400).json({ error: "Email is not valid" });
   }
-  if (phone.length != 10 || !isPhoneValid) {
+
+  // Validate phone number to be exactly 10 digits and only numeric
+  var isPhoneValid = /^[0-9]{10}$/.test(phone);
+  if (!isPhoneValid) {
     return res.status(400).json({ error: "Phone number is not valid" });
   }
 
+  // Validate that the 'id' is a valid MongoDB ObjectId
   if (!mongoose.Types.ObjectId.isValid(id)) {
-    return res.status(404).json({ error: "User does not exsist" });
+    return res.status(404).json({ error: "User does not exist" });
   }
 
+  // Update the employee document in the database
   const employee = await Employee.findOneAndUpdate(
     { _id: id },
     {
-      name: req.body.name,
-      email: req.body.email,
-      dob: req.body.dob,
-      role: req.body.role,
-      address: req.body.address,
-      phone: req.body.phone,
-    }
+      name,
+      email,
+      dob,
+      role,
+      address,
+      phone,
+    },
+    { new: true } // Return the updated document
   );
 
   if (!employee) {
-    return res.status(404).json({ error: "User does not exsist" });
+    return res.status(404).json({ error: "User does not exist" });
   }
 
   res.status(200).json(employee);
@@ -140,10 +183,16 @@ const updateUser = async (req, res) => {
 const loginUser = async (req, res) => {
   const { email, password } = req.body;
 
+  // Type checks for login credentials
+  if (typeof email !== "string" || typeof password !== "string") {
+    // If either email or password is not a string, return an error
+    return res.status(400).json({ error: "Invalid input types" });
+  }
+
   try {
     const employee = await Employee.login(email, password);
 
-    // create a token
+    // Create a JWT token
     const token = createToken(employee._id);
     const id = employee._id;
     const role = employee.role;
@@ -157,6 +206,20 @@ const loginUser = async (req, res) => {
 // signup user
 const signupUser = async (req, res) => {
   const { name, dob, role, address, phone, email, password } = req.body;
+
+  // Type checks for all input fields
+  if (
+    typeof name !== "string" ||
+    typeof email !== "string" ||
+    typeof dob !== "string" ||
+    typeof role !== "string" ||
+    typeof address !== "string" ||
+    typeof phone !== "string" ||
+    typeof password !== "string"
+  ) {
+    // If any field is not of the expected type, return an error
+    return res.status(400).json({ error: "Invalid input types" });
+  }
 
   try {
     const employee = await Employee.signup(
@@ -175,7 +238,7 @@ const signupUser = async (req, res) => {
     );
     const id = employee._id;
 
-    // create a token
+    // Create a JWT token
     const token = createToken(employee._id);
 
     res.status(200).json({ id, email, token });
